@@ -1,4 +1,5 @@
 import json
+import re
 from google import genai
 from google.genai import types
 
@@ -16,39 +17,53 @@ event_schema = types.Schema(
     properties={
         "outcome": types.Schema(type=types.Type.STRING),
         "description": types.Schema(type=types.Type.STRING),
-        "rewards": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
-        "consequences": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
+        "change": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
         "conclusion": types.Schema(type=types.Type.STRING)
     },
     required=["outcome", "description", "conclusion"]
 )
 
 # --------------------------------------------------
-# 示例玩家状态
+# 玩家状态
 # --------------------------------------------------
 player_state = {
-    "name": "玩家1",
-    "hp": 100,
-    "mp": 50,
-    "abilities": [
-        {"name": "火焰法球", "type": "魔法", "cost": 5, "effect": "造成中等火焰伤害", "world_compatibility": 1.0},
-        {"name": "隐匿术", "type": "技能", "cost": 3, "effect": "提高潜行成功率", "world_compatibility": 0.8}
+    "玩家名字": "玩家1",
+    "血量": 100,
+    "法力": 50,
+    "体力": 100,
+
+    "体质": 1,
+    "敏捷": 1,
+    "力量": 1,
+    "智力": 1,
+    "魅力": 1,
+
+    "能力": [
+        {"技能名字": "火焰法球", "技能消耗": 5, "技能介绍": "造成中等火焰伤害"},
+        {"技能名字": "隐匿术", "技能消耗": 5, "技能介绍": "提高潜行成功率"}
     ],
-    "items": []
+    "装备": [],
+    "物品": [{"物品名字": "木棍", "耐久": 100, "物品介绍": "一根普通的木棍"}]
 }
 
 # --------------------------------------------------
 # 世界状态
 # --------------------------------------------------
 world_state = {
-    "name": "废墟魔都",
-    "world_type": "魔法",
-    "danger_level": 3,
-    "current_event": "无"
+    "世界名字": "测试空间",
+    "世界ID": 0,
+    "危险度": 0,
+    "世界介绍": "这是一个用于测试使用的空间，这里的任何技能都能生效，玩家可以使用任何指令",
+
+    "科技水平": 10,
+    "魔力总量": 10,
+    "能力体系": "没有任何的能力体系",
+    "当前任务": "无",
+    "当前状态": "无"
 }
 
 # --------------------------------------------------
-# 生成 Prompt（不带规则）
+# 生成 Prompt
 # --------------------------------------------------
 def generate_prompt(player_state, world_state, player_action):
     return f"""
@@ -61,7 +76,8 @@ def generate_prompt(player_state, world_state, player_action):
     4. 你负责叙事与判定，不负责指导玩家。
     5. 所有叙事内容只放在 description 字段中。
     6. 最后总结目前内容为1到2句话并放到conclusion字段中。
-    7. 血量和法力值的变化，使用HP和MP来表示
+    7. 对于任何属性的变化，请使用血量，法力，体力，体质，敏捷，力量，智力和魅力的数值变动.
+    8. 对于任何物品的获取或者失去，请使用获得某件物品或者失去某件物品
     
     判定结果类型固定为：
     crit（大成功）、success（成功）、partial（部分成功）、failure（失败）、fumble（大失败）
@@ -94,45 +110,51 @@ def generate_event(client, prompt):
 # 更新状态
 # --------------------------------------------------
 def update_states(event, player_state, world_state):
-    # 如果事件给出了任何改变角色的状态
-    rewards = event.get("rewards", [])
-    for r in rewards:
-        if "HP+" in r:
-            value = int(r.split("HP+")[1])
-            player_state["hp"] += value
-            player_state["hp"] = min(player_state["hp"], 100)
+    def apply_change(text):
+        """
+        根据字符串内容来判断对 player_state 的影响。
+        自动识别 HP/MP/体力/属性 等等，只要格式像 XXX±数字。
+        也能识别 “获得 物品名”。
+        """
+        # 数值类变动
+        match = re.match(r"(.+?)([+-]\d+)", text)
+        if match:
+            key = match.group(1).strip()
+            data = int(match.group(2))
 
-        if "MP+" in r:
-            value = int(r.split("MP+")[1])
-            player_state["mp"] += value
-            player_state["mp"] = min(player_state["mp"], 50)
+            if key in player_state:
+                player_state[key] += data
+                return
 
-        if "获得" in r:
-            item_name = r.replace("获得", "").strip()
-            player_state["items"].append(item_name)
+        # 获得物品
+        if text.startswith("获得"):
+            item_name = text.replace("获得", "").strip()
+            player_state["物品"].append({"物品名字": item_name})
+            return
 
-    consequences = event.get("consequences", [])
-    for c in consequences:
-        if "HP-" in c:
-            value = int(c.split("HP-")[1])
-            player_state["hp"] -= value
+        #失去物品
+        if text.startswith("失去"):
+            item_name = text.replace("失去", "").strip()
+            player_state["物品"].remove(item_name)
+            return
 
-        if "MP-" in c:
-            value = int(c.split("MP-")[1])
-            player_state["mp"] -= value
 
-    # 对于每一个事件，都将总结后的事件发展传递到世界状态的当前事件中
-    world_state["current_event"] = event.get("conclusion", [])
+    # 遍历 rewards
+    for c in event.get("change", []):
+        apply_change(c)
 
+    # 更新世界状态
+    world_state["当前状态"] = event.get("conclusion", "")
 
     return player_state, world_state
+
 
 # --------------------------------------------------
 # 游戏 Loop
 # --------------------------------------------------
 def main():
     print("欢迎来到无限流文字游戏 DEMO！")
-    print(f"你进入了世界：{world_state['name']}")
+    print(f"你进入了世界：{world_state['世界名字']}")
 
     for turn in range(10):
         action_name = input("\n请输入动作名称（如 攻击 / 潜行 / 使用技能）: ")
@@ -159,8 +181,7 @@ def main():
 
             print("\n判定结果：", event["outcome"])
             print("叙述：", event["description"])
-            print("奖励：", event.get("rewards"))
-            print("后果：", event.get("consequences"))
+            print("变化：", event.get("change"))
 
         except Exception as e:
             print("❌ JSON 解析失败：", e)
