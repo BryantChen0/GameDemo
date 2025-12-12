@@ -39,11 +39,11 @@ player_state = {
     "魅力": 1,
 
     "能力": [
-        {"技能名字": "火焰法球", "技能消耗": 5, "技能介绍": "造成中等火焰伤害"},
-        {"技能名字": "隐匿术", "技能消耗": 5, "技能介绍": "提高潜行成功率"}
+        {"名字": "火焰法球", "介绍": "造成中等火焰伤害"},
+        {"名字": "隐匿术", "介绍": "提高潜行成功率"}
     ],
     "装备": [],
-    "物品": [{"物品名字": "木棍", "耐久": 100, "物品介绍": "一根普通的木棍"}]
+    "物品": [{"名字": "牛肉", "介绍": "一块可以用来吃的牛肉"},]
 }
 
 # --------------------------------------------------
@@ -77,7 +77,8 @@ def generate_prompt(player_state, world_state, player_action):
     5. 所有叙事内容只放在 description 字段中。
     6. 最后总结目前内容为1到2句话并放到conclusion字段中。
     7. 对于任何属性的变化，请使用血量，法力，体力，体质，敏捷，力量，智力和魅力的数值变动.
-    8. 对于任何物品的获取或者失去，请使用获得某件物品或者失去某件物品
+    8. 对于任何物品的获取或者失去，请使用以下格式：“获得物品：某个物品“或 “失去物品：某个物品”
+    9. 对于任何能力的获取或者失去，请使用以下格式：“获得能力：某个能力”或“失去能力：某个能力”
     
     判定结果类型固定为：
     crit（大成功）、success（成功）、partial（部分成功）、failure（失败）、fumble（大失败）
@@ -110,13 +111,8 @@ def generate_event(client, prompt):
 # 更新状态
 # --------------------------------------------------
 def update_states(event, player_state, world_state):
-    def apply_change(text):
-        """
-        根据字符串内容来判断对 player_state 的影响。
-        自动识别 HP/MP/体力/属性 等等，只要格式像 XXX±数字。
-        也能识别 “获得 物品名”。
-        """
-        # 数值类变动
+    def property_change(text):
+        # 属性变动
         match = re.match(r"(.+?)([+-]\d+)", text)
         if match:
             key = match.group(1).strip()
@@ -126,22 +122,20 @@ def update_states(event, player_state, world_state):
                 player_state[key] += data
                 return
 
-        # 获得物品
-        if text.startswith("获得"):
-            item_name = text.replace("获得", "").strip()
-            player_state["物品"].append({"物品名字": item_name})
-            return
-
-        #失去物品
-        if text.startswith("失去"):
-            item_name = text.replace("失去", "").strip()
-            player_state["物品"].remove(item_name)
-            return
+    def object_change(text):
+        #物品变动
+        match = re.match(r"(获取|失去)(\S+)：\s*(\S+)，(\S+介绍)：\s*(\S+)", text)
+        if match:
+            action = match.group(1).strip()
+            object_type = match.group(2).strip()
+            object_name = match.group(3).strip()
+            description_type = match.group(4).strip()
+            description = match.group(5).strip()
 
 
     # 遍历 rewards
     for c in event.get("change", []):
-        apply_change(c)
+        property_change(c)
 
     # 更新世界状态
     world_state["当前状态"] = event.get("conclusion", "")
