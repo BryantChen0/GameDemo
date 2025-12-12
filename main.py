@@ -1,7 +1,7 @@
 import json
-import re
 from google import genai
 from google.genai import types
+from GameStateManager import GameStateManager
 
 # --------------------------------------------------
 # 初始化 API
@@ -17,7 +17,8 @@ event_schema = types.Schema(
     properties={
         "outcome": types.Schema(type=types.Type.STRING),
         "description": types.Schema(type=types.Type.STRING),
-        "change": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
+        "property_change": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
+        "object_change": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
         "conclusion": types.Schema(type=types.Type.STRING)
     },
     required=["outcome", "description", "conclusion"]
@@ -108,47 +109,12 @@ def generate_event(client, prompt):
     return response.text
 
 # --------------------------------------------------
-# 更新状态
-# --------------------------------------------------
-def update_states(event, player_state, world_state):
-    def property_change(text):
-        # 属性变动
-        match = re.match(r"(.+?)([+-]\d+)", text)
-        if match:
-            key = match.group(1).strip()
-            data = int(match.group(2))
-
-            if key in player_state:
-                player_state[key] += data
-                return
-
-    def object_change(text):
-        #物品变动
-        match = re.match(r"(获取|失去)(\S+)：\s*(\S+)，(\S+介绍)：\s*(\S+)", text)
-        if match:
-            action = match.group(1).strip()
-            object_type = match.group(2).strip()
-            object_name = match.group(3).strip()
-            description_type = match.group(4).strip()
-            description = match.group(5).strip()
-
-
-    # 遍历 rewards
-    for c in event.get("change", []):
-        property_change(c)
-
-    # 更新世界状态
-    world_state["当前状态"] = event.get("conclusion", "")
-
-    return player_state, world_state
-
-
-# --------------------------------------------------
 # 游戏 Loop
 # --------------------------------------------------
 def main():
     print("欢迎来到无限流文字游戏 DEMO！")
     print(f"你进入了世界：{world_state['世界名字']}")
+    manager = GameStateManager(player_state, world_state)
 
     for turn in range(10):
         action_name = input("\n请输入动作名称（如 攻击 / 潜行 / 使用技能）: ")
@@ -171,11 +137,15 @@ def main():
         # 解析 JSON
         try:
             event = json.loads(event_text)
-            update_states(event, player_state, world_state)
+            manager.apply_change(event)
 
             print("\n判定结果：", event["outcome"])
             print("叙述：", event["description"])
-            print("变化：", event.get("change"))
+            print("属性变化：", event.get("property_change"))
+            print("物品或能力变化", event.get("object_change"))
+            print("----------------------------------------")
+            print(player_state)
+            print("----------------------------------------")
 
         except Exception as e:
             print("❌ JSON 解析失败：", e)
