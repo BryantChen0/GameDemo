@@ -1,5 +1,5 @@
 import json
-import os
+
 from google import genai
 from google.genai import types
 from GameStateManager import GameStateManager
@@ -7,7 +7,7 @@ from GameStateManager import GameStateManager
 # --------------------------------------------------
 # 初始化 API
 # --------------------------------------------------
-API_KEY = os.getenv("GEMINI_API_KEY")
+API_KEY = "AIzaSyDAopqnOSxalLPjmRGnenka--8bHY9LlrE"
 if API_KEY.startswith("在这里"):
     raise RuntimeError("请在代码中填写你自己的 Gemini API Key")
 client = genai.Client(api_key=API_KEY)
