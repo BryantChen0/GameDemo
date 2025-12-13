@@ -1,4 +1,5 @@
 import json
+import os
 from google import genai
 from google.genai import types
 from GameStateManager import GameStateManager
@@ -6,7 +7,9 @@ from GameStateManager import GameStateManager
 # --------------------------------------------------
 # 初始化 API
 # --------------------------------------------------
-API_KEY = "AIzaSyDAopqnOSxalLPjmRGnenka--8bHY9LlrE"
+API_KEY = os.getenv("GEMINI_API_KEY")
+if API_KEY.startswith("在这里"):
+    raise RuntimeError("请在代码中填写你自己的 Gemini API Key")
 client = genai.Client(api_key=API_KEY)
 
 # --------------------------------------------------
@@ -17,6 +20,7 @@ event_schema = types.Schema(
     properties={
         "outcome": types.Schema(type=types.Type.STRING),
         "description": types.Schema(type=types.Type.STRING),
+        "state_change": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
         "property_change": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
         "object_change": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.STRING)),
         "conclusion": types.Schema(type=types.Type.STRING)
@@ -29,8 +33,11 @@ event_schema = types.Schema(
 # --------------------------------------------------
 player_state = {
     "玩家名字": "玩家1",
-    "血量": 100,
+    "生命上限": 100,
+    "生命": 100,
+    "法力上限": 50,
     "法力": 50,
+    "体力上限": 100,
     "体力": 100,
 
     "体质": 1,
@@ -56,8 +63,6 @@ world_state = {
     "危险度": 0,
     "世界介绍": "这是一个用于测试使用的空间，这里的任何技能都能生效，玩家可以使用任何指令",
 
-    "科技水平": 10,
-    "魔力总量": 10,
     "能力体系": "没有任何的能力体系",
     "当前任务": "无",
     "当前状态": "无"
@@ -75,11 +80,11 @@ def generate_prompt(player_state, world_state, player_action):
     2. 输出严格 JSON，不添加多余解释。
     3. 不向玩家提供提示，不改变玩家意图。
     4. 你负责叙事与判定，不负责指导玩家。
-    5. 所有叙事内容只放在 description 字段中。
+    5. 所有叙事内容只放在 description 字段中。请将判定结果类型写入 outcome 字段。
     6. 最后总结目前内容为1到2句话并放到conclusion字段中。
-    7. 对于任何属性的变化，请使用血量，法力，体力，体质，敏捷，力量，智力和魅力的数值变动.
-    8. 对于任何物品的获取或者失去，请使用以下格式：“获得物品：某个物品“或 “失去物品：某个物品”
-    9. 对于任何能力的获取或者失去，请使用以下格式：“获得能力：某个能力”或“失去能力：某个能力”
+    7. 对于任何属性或状态的变化，请使用生命，法力，体力，体质，敏捷，力量，智力和魅力的数值变动.
+    8. 对于任何物品或能力的获取或者失去，请使用以下格式：“（获取/失去）（装备/物品/能力）：某个（装备/物品/能力），介绍：（装备/物品/能力）介绍”
+    9. 如果装备的介绍中有能力，属性或者状态变更，需要按照第七条规则将其输出
     
     判定结果类型固定为：
     crit（大成功）、success（成功）、partial（部分成功）、failure（失败）、fumble（大失败）
@@ -141,6 +146,7 @@ def main():
 
             print("\n判定结果：", event["outcome"])
             print("叙述：", event["description"])
+            print("状态变化：", event.get("state_change"))
             print("属性变化：", event.get("property_change"))
             print("物品或能力变化", event.get("object_change"))
             print("----------------------------------------")
