@@ -4,21 +4,27 @@ import math
 # 更新状态的工具类
 # --------------------------------------------------
 class GameStateManager:
-    def __init__(self, player_state, world_state):
+    def __init__(self, player_state, world_state, event_state):
         self.player = player_state
         self.world = world_state
+        self.event = event_state
 
     def apply_change(self, event):
+        #更新属性变化
         self.apply_property_change(event.get("property_change", []))
+        #更新状态变化
         self.apply_state_change(event.get("state_change", []))
+        #更新物品或能力变化
         self.apply_object_change(event.get("object_change", []))
-
-        # 更新世界状态
-        self.world["当前状态"] = event.get("conclusion", "")
+        #根据当前属性，更新状态上限
+        self.update_max_state()
+        #根据总结将其放入当前状态
+        self.event["当前状态"] = event.get("conclusion", "")
 
     def update_max_state(self):
-        CON = max(0, self.player["体质"] - 1)
-        INT = max(0, self.player["智力"] - 1)
+        #随着属性的变化来进行状态的变化，同时检查是否合法
+        CON = math.log1p(math.exp(self.player["体质"] - 1))
+        INT = math.pow((self.player["智力"] - 1), 1.2)
         AVG = max(0, (
             self.player["体质"] +
             self.player["力量"] +
@@ -26,18 +32,26 @@ class GameStateManager:
         ) / 3)
 
         #血量上限随着体质属性的变化来变化，其收益会随着体质的增长而递减
-        self.player["生命上限"] = int(100 + 1.2 * sqrt(CON))
+        self.player["生命上限"] = max(1, int(100 + 2 * CON))
 
         #法力上限随着智力属性的变化来变化，其收益会随着智力的增长而增长
-        self.player["法力上限"] = int(50 + (INT ** 1.2))
+        self.player["法力上限"] = max(1, int(50 + 2 * INT))
 
         #体力上限随着敏捷，力量，体质的平均数来变化，其收益平均化，但是较低
-        self.player["体力上限"] = int(100 + AVG)
+        self.player["体力上限"] = max(1, int(100 + AVG))
 
         # 防止当前值超过最大值
-        self.player["生命"] = min(self.player["生命"], self.player["最大生命"])
-        self.player["法力"] = min(self.player["法力"], self.player["最大法力"])
-        self.player["体力"] = min(self.player["体力"], self.player["最大体力"])
+        self.player["生命"] = min(self.player["生命"], self.player["生命上限"])
+        self.player["法力"] = min(self.player["法力"], self.player["法力上限"])
+        self.player["体力"] = min(self.player["体力"], self.player["体力上限"])
+
+        # 当前状态下限 0，上限对应最大值
+        for k, max_k in [
+            ("生命", "生命上限"),
+            ("法力", "法力上限"),
+            ("体力", "体力上限")
+        ]:
+        self.player[k] = max(0, min(self.player[k], self.player[max_k]))
 
     def apply_state_change(self, states):
         #状态变化
@@ -48,13 +62,6 @@ class GameStateManager:
                 value = int(match.group(2))
                 if key in self.player:
                     self.player[key] += value
-                    # 当前状态下限 0，上限对应最大值
-                    if key == "生命":
-                        self.player[key] = max(0, min(self.player[key], self.player["最大生命"]))
-                    elif key == "法力":
-                        self.player[key] = max(0, min(self.player[key], self.player["最大法力"]))
-                    elif key == "体力":
-                        self.player[key] = max(0, min(self.player[key], self.player["最大体力"]))
 
     def apply_property_change(self, props):
         # 属性变动
@@ -64,7 +71,7 @@ class GameStateManager:
                 key = match.group(1).strip()
                 value = int(match.group(2))
                 if key in self.player:
-                    self.player[key] += value
+                    self.player[key] = max(0, self.player[key] + value)
 
     def apply_object_change(self, objs):
         #物品变动
@@ -80,3 +87,15 @@ class GameStateManager:
                         i for i in self.player[object_type]
                         if i["名字"] != object_name
                     ]
+
+    def apply_task_change(self, tasks):
+        #任务变动
+        for text in tasks:
+            match = re.match(r"(完成|接取)\S+\s*：\s*(\S+)")
+            if match:
+                action, task = match.groups()
+
+                if action == "接取":
+                    self.event["当前任务"] = task
+                elif action == "完成":
+                    self.event["当前任务"] = "无"
