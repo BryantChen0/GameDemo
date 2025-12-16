@@ -69,7 +69,7 @@ world_state = {
 # 当前事件
 # --------------------------------------------------
 event_state = {
-    "当前任务": "无",
+    "任务": "无",
     "当前状态": "无"
 }
 
@@ -97,7 +97,7 @@ def generate_prompt(player_state, world_state, event_state, player_action):
     
     玩家状态：{json.dumps(player_state, ensure_ascii=False)}
     世界状态：{json.dumps(world_state, ensure_ascii=False)}
-    当前事件状态：{json.dumps(event_state, ensure_ascii=False)}
+    事件状态：{json.dumps(event_state, ensure_ascii=False)}
     玩家行动：{json.dumps(player_action, ensure_ascii=False)}
     
     请输出严格符合 schema 的 JSON。

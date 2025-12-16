@@ -51,32 +51,42 @@ class GameStateManager:
             ("法力", "法力上限"),
             ("体力", "体力上限")
         ]:
-        self.player[k] = max(0, min(self.player[k], self.player[max_k]))
+            self.player[k] = max(0, min(self.player[k], self.player[max_k]))
 
     def apply_state_change(self, states):
         #状态变化
         for text in states:
+            text = text.replace(" ", "")
             match = re.match(r"(.+?)([+-]\d+)", text)
             if match:
                 key = match.group(1).strip()
                 value = int(match.group(2))
                 if key in self.player:
                     self.player[key] += value
+            else:
+                print("无法解析状态变动： ", text)
+                return
 
     def apply_property_change(self, props):
         # 属性变动
         for text in props:
+            text = text.replace(" ", "")
             match = re.match(r"(.+?)([+-]\d+)", text)
             if match:
                 key = match.group(1).strip()
                 value = int(match.group(2))
                 if key in self.player:
                     self.player[key] = max(0, self.player[key] + value)
+            else:
+                print("无法解析属性变动： ", text)
+                return
 
     def apply_object_change(self, objs):
         #物品变动
         for text in objs:
-            match = re.match(r"(获取|失去)\s*(\S+)\s*：\s*(\S+)，\S+：[^：]+：\s*(.+)", text)
+            text = text.strip()
+            text = re.sub(r"\s+", " ", text)
+            match = re.match(r"(获取|失去)\s*(装备|物品|能力)\s*[:：]\s*([^\s，,]+)[，,]\s*(?:介绍|说明|描述)\s*[:：]\s*(.+)", text)
             if match:
                 action, object_type, object_name, description = match.groups()
 
@@ -87,15 +97,22 @@ class GameStateManager:
                         i for i in self.player[object_type]
                         if i["名字"] != object_name
                     ]
+            else:
+                print("无法解析物品变动： ", text)
+                return
 
     def apply_task_change(self, tasks):
         #任务变动
         for text in tasks:
-            match = re.match(r"(完成|接取)\S+\s*：\s*(\S+)")
+            text = text.replace(" ", "")
+            match = re.match(r"(完成|接取)\S+\s*：\s*(\S+)", text)
             if match:
                 action, task = match.groups()
 
                 if action == "接取":
-                    self.event["当前任务"] = task
+                    self.event["任务"] = task
                 elif action == "完成":
-                    self.event["当前任务"] = "无"
+                    self.event["任务"] = "无"
+            else:
+                print("无法解析任务变动： ", text)
+                return
