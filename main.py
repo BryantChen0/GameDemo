@@ -29,49 +29,7 @@ event_schema = types.Schema(
     required=["outcome", "description", "conclusion"]
 )
 
-# --------------------------------------------------
-# 玩家状态
-# --------------------------------------------------
-player_state = {
-    "玩家名字": "玩家1",
-    "生命上限": 100,
-    "生命": 100,
-    "法力上限": 50,
-    "法力": 50,
-    "体力上限": 100,
-    "体力": 100,
 
-    "体质": 1,
-    "敏捷": 1,
-    "力量": 1,
-    "智力": 1,
-    "魅力": 1,
-
-    "能力": [
-        {"名字": "火焰法球", "介绍": "造成中等火焰伤害"},
-        {"名字": "隐匿术", "介绍": "提高潜行成功率"}
-    ],
-    "装备": [{"名字": "木甲", "介绍": "一个用木板制作的护甲，体质+1"}],
-    "物品": [{"名字": "牛肉", "介绍": "一块可以用来吃的牛肉"}]
-}
-
-# --------------------------------------------------
-# 当前世界
-# --------------------------------------------------
-world_state = {
-    "世界名字": "测试空间",
-    "世界ID": 0,
-    "危险度": 0,
-    "世界介绍": "这是一个用于测试使用的空间，这里的任何技能都能生效，玩家可以使用任何指令",
-    "能力体系": "没有任何的能力体系",
-}
-# --------------------------------------------------
-# 当前事件
-# --------------------------------------------------
-event_state = {
-    "任务": "无",
-    "当前状态": "无"
-}
 
 # --------------------------------------------------
 # 生成 Prompt
@@ -124,6 +82,14 @@ def generate_event(client, prompt):
 # 游戏 Loop
 # --------------------------------------------------
 def main():
+    with open("game.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    player_state = data["player_state"]
+    world_state = data["world_state"]
+    task_state = data["task_state"]
+    event_state = data["event_state"]
+
     print("欢迎来到无限流文字游戏 DEMO！")
     print(f"你进入了世界：{world_state['世界名字']}")
     manager = GameStateManager(player_state, world_state, event_state)
@@ -159,6 +125,8 @@ def main():
             print("❌ JSON 解析失败：", e)
             print("原文：", event_text)
 
+    with open("game.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
     main()

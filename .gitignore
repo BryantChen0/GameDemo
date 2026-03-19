@@ -12,3 +12,5 @@ __pycache__/
 # JetBrains
 .idea/
 *.iml
+#virtual environment
+venv/
