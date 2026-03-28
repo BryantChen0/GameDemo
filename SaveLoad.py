@@ -1,6 +1,6 @@
 import json
 
-#存档读档工具类
+#存档读档的模块
 class SaveLoad:
     def __init__(self, json_data):
         self.json_data = json_data

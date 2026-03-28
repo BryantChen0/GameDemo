@@ -58,7 +58,7 @@ def main():
             if event.get("task_options"):
                 print("可选任务：")
                 for i, t in enumerate(event["task_options"]):
-                    print(f"{i + 1}. {t['task']} - {t['description']} - {t['reward']}")
+                    print(f"{i + 1}. {t['task_name']} - {t['task_description']} - {t['reward']}")
 
                 choice = int(input("请选择任务编号: "))
                 selected_task = event["task_options"][choice - 1]

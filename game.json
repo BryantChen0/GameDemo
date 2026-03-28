@@ -14,16 +14,17 @@
         "智力": 1,
         "魅力": 1,
         "积分": 100,
-        "能力": [{
+        "ability": [{
             "type": "其他",
             "cost": {"法力": 0},
             "quality": "传说",
-            "name":"开发者之力",
-            "description":"调用这个能力，可以操控任何事情",
+            "ability_name":"开发者之力",
+            "ability_description":"调用这个能力，可以操控任何事情",
             "effect": {"strength": "极强", "attr": "智力"}
         }],
-        "装备": [],
-        "物品": []
+        "equipment": [],
+        "item": [],
+        "buff": []
     },
     "world_state": {
         "world_name": "起源空间",

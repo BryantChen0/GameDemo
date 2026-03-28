@@ -1,7 +1,7 @@
 import json
 import requests
 
-#AI调用工具类
+# AI调用模块
 class Prompt:
     def __init__(self, player_state, world_state, task_state, event_state, player_action):
         self.player_state = player_state
@@ -41,35 +41,35 @@ class Prompt:
             事件状态：{json.dumps(self.event_state, ensure_ascii=False)}
             玩家行动：{json.dumps(self.player_action, ensure_ascii=False)}
     
-            请严格输出 JSON，结构如下（必须遵守，不能缺少字段）：
+            请严格输出 JSON，结构如下（未发生变化的字段可以省略）：
             {{
               "outcome": "success",                 // 判定结果类型：crit、success、partial、failure、fumble
               "description": "描述文字",             // 事件叙事
               "task_options": [                     //将任务列表存放到这里
-                  {{"task": "任务1", "description": "介绍", "reward": "任务奖励"}},
-                  {{"task": "任务2", "description": "介绍", "reward": "任务奖励"}}
+                  {{"task_name": "任务1", "task_description": "介绍", "reward": "任务奖励"}},
+                  {{"task_name": "任务2", "task_description": "介绍", "reward": "任务奖励"}}
                 ]
-              "task_change":{{"action":"接取/完成","task":"任务名","description":"任务介绍", "reward": "任务奖励"}},// 任务变化，每项必须有 action、task、description
+              "task_change":{{"action":"接取/完成","task_name":"任务名","task_description":"任务介绍", "reward": "任务奖励"}},// 任务变化，每项必须有 action、task、description
               "property_change": [                   // 属性变化，每项 name + delta
-                {{"name":"属性","delta":数值变化}}
+                {{"name": "属性", "mode": "add/mul/set" "delta": 数值}}
               ],
               "object_change": [                      // 物品/装备变化，每项 action、type、name、description
-                {{"action":"获取/失去","type":"","name":"名称","description":"介绍"}}
+                {{"action":"获取/失去","type":"","object_name":"名称","object_description":"介绍", "effect": [{{"name": "属性", "mode": "add/mul/set", "delta": 数值变化}}]}}
               ],
               "ability_change": [                      // 能力变化
                 {{"action":"获取/失去","type": "伤害/治疗/防护/其他", "cost": {{"法力/体力/生命": "数字"}}, "quality": "普通/优秀/稀有/史诗/传说","name":"能力名","description":"能力介绍", "effect": {{"strength": "弱/中/强/极强", "attr": "属性名称"}} }}。
               ],
               "ability_use": [{{"ability_name": "技能名称"}}] //可以有多个技能同时使用
-              "world_change": {{"action":"进入/退出","world":"世界名称","description":"世界介绍"}},
+              "world_change": {{"action":"进入/退出","world_name":"世界名称", "world_description":"世界介绍"}},
               "conclusion": "总结"
             }}
     
             注意：
             - 属性变化和属性只允许使用：生命、法力、体力、护盾、体质、敏捷、力量、智力、魅力、积分。
-            - 物品变化请写为对象：{{"action":"获取/失去","type":"装备/物品","name":"名称","description":"说明"}}。
-            - 任务变化请写为对象：{{"action":"接取/完成","task":"任务名","description":"任务介绍"}}。
-            - 世界变化请写为对象：{{"action":"进入/退出","world":"世界名","description":"世界介绍"}}。
-            - 能力变化请写为对象: {{"action":"获取/失去","type": "伤害/治疗/防护/其他", "cost": {{"法力/体力/生命": "数字"}}, "quality": "普通/优秀/稀有/史诗/传说", "name":"能力名", "description":"能力介绍", "effect": {{"strength": "弱/中/强/极强", "attr": "属性"}} }}。
+            - 物品变化请写为对象：{{"action":"获取/失去","type":"装备/物品","object_name":"名称","object_description":"说明", "effect": [{{"name": "属性", "mode": "add/mul/set", "delta": 数值}}]}}。
+            - 任务变化请写为对象：{{"action":"接取/完成","task_name":"任务名","task_description":"任务介绍", "reward": "任务奖励"}}。
+            - 世界变化请写为对象：{{"action":"进入/退出","world_name":"世界名","world_description":"世界介绍"}}。
+            - 能力变化请写为对象: {{"action":"获取/失去","type": "伤害/治疗/防护/其他", "cost": {{"法力/体力/生命": "数字"}}, "quality": "普通/优秀/稀有/史诗/传说", "ability_name":"能力名", "ability_description":"能力介绍", "effect": {{"strength": "弱/中/强/极强", "attr": "属性"}} }}。
             - JSON 必须合法可解析，不允许任何多余文本、提示或 Markdown。
     
             严格按以上格式输出 JSON，不允许偏离。
